@@ -6,9 +6,9 @@
 // Lazy load puppeteer to avoid crashes if it's not installed (e.g. on Railway without specific buildpacks)
 let puppeteer;
 try {
-  puppeteer = require('puppeteer');
+  puppeteer = require('puppeteer-core');
 } catch (e) {
-  console.warn('[PDF Service] ⚠️ Puppeteer module not found. PDF generation will be unavailable.');
+  console.warn('[PDF Service] ⚠️ Puppeteer-core module not found. PDF generation will be unavailable.');
 }
 
 /**
@@ -26,7 +26,7 @@ async function generatePdf(htmlContent, cssContent = '') {
   try {
     browser = await puppeteer.launch({
       headless: 'new',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome' || undefined,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium' || '/usr/bin/chromium-browser' || 'chromium',
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
