@@ -40,12 +40,18 @@ connectDB().then(() => {
 });
 
 // ── Security Headers & Middleware ────────────────────────────
-app.use(helmet()); // Secure Headers (XSS, Clickjacking, CSP)
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable CSP to prevent blocking PDF downloads
+  crossOriginEmbedderPolicy: false,
+})); 
 app.use(mongoSanitize()); // Prevent NoSQL Injection
 app.use(xss()); // Sanitize User Input against XSS
 app.set('trust proxy', 1);
 
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(express.json({ limit: '50mb' }));
 
 // ── Cookies & Session Security (Best Practices) ──────────────
@@ -186,7 +192,8 @@ app.post('/api/generate-pdf', async (req, res) => {
       'Content-Length': pdfBuffer.length
     }).end(pdfBuffer, 'binary');
   } catch (err) {
-    res.status(500).json({ error: 'PDF generation failed' });
+    console.error('[PDF Generation Error]', err);
+    res.status(500).json({ error: 'PDF generation failed', details: err.message });
   }
 });
 
