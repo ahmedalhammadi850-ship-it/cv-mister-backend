@@ -26,6 +26,7 @@ async function generatePdf(htmlContent, cssContent = '') {
   try {
     browser = await puppeteer.launch({
       headless: 'new',
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome' || undefined,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',

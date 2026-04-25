@@ -23,9 +23,7 @@
     "nodemailer": "^8.0.5",
     "socket.io": "^4.8.3",
     "uuid": "^11.1.0",
-    "xss-clean": "^0.1.4"
-  },
-  "optionalDependencies": {
+    "xss-clean": "^0.1.4",
     "puppeteer": "^24.40.0"
   }
 }
