@@ -214,3 +214,14 @@ app.use((err, req, res, next) => {
 server.listen(PORT, () => {
   console.log(`🚀 CV-Mister Backend SECURE running on http://localhost:${PORT}`);
 });
+
+// ── Global Error Catching ─────────────────────────────────────
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Unhandled Rejection] at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('[Uncaught Exception] thrown:', err);
+  // Optional: Graceful shutdown
+  // process.exit(1);
+});

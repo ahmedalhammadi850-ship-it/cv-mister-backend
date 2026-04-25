@@ -3,7 +3,13 @@
 // REBUILT FROM SCRATCH — Clean, minimal, guaranteed to work.
 // ============================================================
 
-const puppeteer = require('puppeteer');
+// Lazy load puppeteer to avoid crashes if it's not installed (e.g. on Railway without specific buildpacks)
+let puppeteer;
+try {
+  puppeteer = require('puppeteer');
+} catch (e) {
+  console.warn('[PDF Service] ⚠️ Puppeteer module not found. PDF generation will be unavailable.');
+}
 
 /**
  * Generate a PDF buffer from HTML content using Headless Chrome.
@@ -12,6 +18,9 @@ const puppeteer = require('puppeteer');
  * @returns {Promise<Buffer>} Raw PDF binary buffer
  */
 async function generatePdf(htmlContent, cssContent = '') {
+  if (!puppeteer) {
+    throw new Error('PDF generation service is currently unavailable (Puppeteer not installed).');
+  }
   let browser = null;
 
   try {
