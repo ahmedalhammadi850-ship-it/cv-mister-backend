@@ -15,7 +15,7 @@ function initSocket(server) {
   
   io = new Server(server, {
     cors: {
-      origin: '*', // Allow all origins including Vercel
+      origin: true, // true reflects the origin, allowing any origin while supporting credentials
 
       methods: ['GET', 'POST'],
       credentials: true,
