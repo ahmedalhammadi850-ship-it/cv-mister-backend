@@ -15,7 +15,11 @@ function initSocket(server) {
   
   io = new Server(server, {
     cors: {
-      origin: true, // true reflects the origin, allowing any origin while supporting credentials
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, or Railway health checks)
+        // or any origin to support Vercel without crashing credentials: true
+        callback(null, origin || 'http://localhost:3001');
+      },
 
       methods: ['GET', 'POST'],
       credentials: true,
