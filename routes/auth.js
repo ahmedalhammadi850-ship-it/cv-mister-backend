@@ -58,7 +58,10 @@ router.post('/sync', async (req, res) => {
         email: user.email,
         plan: user.plan,
         isPremium: user.isPremium || false,
-        paymentStatus: user.paymentStatus || 'none'
+        paymentStatus: user.paymentStatus || 'none',
+        resumeCredits: user.resumeCredits !== undefined ? user.resumeCredits : 1,
+        resumesLimit: user.resumesLimit || 1,
+        subscriptionEndDate: user.subscriptionEndDate || null,
       }
     });
   } catch (err) {

@@ -19,6 +19,7 @@ const userSchema = new mongoose.Schema({
   // ── Subscription Management ──────────────────────────────
   subscriptionEndDate: { type: Date, default: null },
   resumesLimit: { type: Number, default: 1 },                // Default limit for new users or free tier (Free: 1)
+  resumeCredits: { type: Number, default: 1 },                // Consumable credits: each resume save costs 1 credit
 
   // ── Rate Limiting for Upgrade Requests ─────────────────────
   upgradeFailedAttempts: { type: Number, default: 0 },       // consecutive rejected attempts

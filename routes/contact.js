@@ -22,6 +22,21 @@ router.post('/', async (req, res) => {
 
     await newMessage.save();
 
+    // Notify n8n Webhook
+    try {
+      const axios = require('axios');
+      const n8nUrl = 'https://ahmeddd111.app.n8n.cloud/webhook/dfa3be7f-785a-4472-95b8-b9c5fb5bdeeb';
+      await axios.post(n8nUrl, {
+        action: 'new_contact_message',
+        name,
+        email,
+        subject,
+        message
+      }, { timeout: 5000 });
+    } catch (n8nErr) {
+      console.warn('[Contact n8n Notify Failed]', n8nErr.message);
+    }
+
     res.status(200).json({ 
       success: true, 
       message: 'Message received! Thank you for contacting us.' 

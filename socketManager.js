@@ -15,7 +15,8 @@ function initSocket(server) {
   
   io = new Server(server, {
     cors: {
-      origin: ['http://localhost:5173', 'http://localhost:3000'],
+      origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000', 'http://localhost:3001'],
+
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -89,13 +90,30 @@ function emitStatusUpdate(paymentData, userId) {
 
   // Notify the specific user
   if (userId) {
-    io.to(`user-${userId}`).emit('my-plan-updated', {
+    const room = `user-${userId}`;
+    const roomSockets = io.sockets.adapter.rooms.get(room);
+    const socketsInRoom = roomSockets ? roomSockets.size : 0;
+    console.log(`[Socket.IO] 📢 Emitting plan update to room "${room}" — ${socketsInRoom} socket(s) in room`);
+    
+    io.to(room).emit('my-plan-updated', {
       type: 'my-plan-updated',
       data: paymentData,
       timestamp: new Date().toISOString(),
     });
-    console.log(`[Socket.IO] 📢 Emitted plan update to user-${userId}`);
+
+    // Also emit to firebaseUID-based room (fallback for clients that joined before _id was available)
+    if (paymentData.firebaseUID) {
+      const fbRoom = `user-${paymentData.firebaseUID}`;
+      io.to(fbRoom).emit('my-plan-updated', {
+        type: 'my-plan-updated',
+        data: paymentData,
+        timestamp: new Date().toISOString(),
+      });
+      console.log(`[Socket.IO] 📢 Also emitted to firebaseUID room "${fbRoom}"`);
+    }
   }
+
+
 
   console.log('[Socket.IO] 📢 Emitted payment-status-changed to admin-room');
 }

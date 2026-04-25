@@ -33,7 +33,11 @@ const PORT = process.env.PORT || 3001;
 
 // ── Initialize Socket.IO & DB ───────────────────────────────
 const io = initSocket(server);
-connectDB();
+connectDB().then(() => {
+  // Initialize Change Streams after DB is connected
+  const { initChangeStreams } = require('./changeStream');
+  initChangeStreams();
+});
 
 // ── Security Headers & Middleware ────────────────────────────
 app.use(helmet()); // Secure Headers (XSS, Clickjacking, CSP)

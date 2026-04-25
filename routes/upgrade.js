@@ -57,7 +57,8 @@ router.post('/request', protect, async (req, res) => {
   try {
     const { proofImage, amount } = req.body;
     if (!proofImage) return res.status(400).json({ error: 'صورة الحوالة مطلوبة' });
-    if (req.user.plan === 'pro') return res.status(400).json({ error: 'حسابك مُفعّل بالفعل على خطة Pro!' });
+    // Allow Pro users to pay for more credits (LOCAL_BACKEND_UPGRADE)
+
 
     const rateLimitStatus = getRateLimitStatus(req.user);
     if (rateLimitStatus.blocked) {
@@ -68,7 +69,7 @@ router.post('/request', protect, async (req, res) => {
     const existing = await UpgradeRequest.findOne({ user: req.user._id, status: 'pending' });
     if (existing) {
       existing.proofImage = proofImage;
-      existing.amount = amount || 25;
+      existing.amount = amount || 3;
       await existing.save();
 
       // ── Emit Real-time: Updated payment ──────────────
@@ -77,7 +78,7 @@ router.post('/request', protect, async (req, res) => {
         _id: existing._id,
         userName: req.user.fullName,
         userEmail: req.user.email,
-        amount: amount || 25,
+        amount: amount || 3,
         status: 'pending',
         isUpdate: true,
         createdAt: existing.createdAt,
@@ -95,7 +96,7 @@ router.post('/request', protect, async (req, res) => {
       userName: req.user.fullName,
       userEmail: req.user.email,
       proofImage,
-      amount: amount || 25,
+      amount: amount || 3,
     });
 
     // ── Emit Real-time: New payment ──────────────────
@@ -150,9 +151,9 @@ router.post('/activate-pro', protect, async (req, res) => {
     user.upgradeFailedAttempts = 0;
     user.upgradeLastRejectedAt = null;
     user.upgradeLockedUntil = null;
+    user.resumeCredits = 2;
     await user.save();
 
-    // Emit real-time event to unlock templates immediately
     const { emitStatusUpdate } = require('../socketManager');
     emitStatusUpdate({
       requestId: user._id.toString(),
@@ -160,6 +161,7 @@ router.post('/activate-pro', protect, async (req, res) => {
       status: 'approved',
       plan: 'pro',
       isPremium: true,
+      resumeCredits: user.resumeCredits,
       userName: user.fullName,
       userEmail: user.email,
       userId: user._id.toString(),

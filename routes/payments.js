@@ -44,11 +44,6 @@ router.post('/create', protect, async (req, res) => {
       return res.status(400).json({ error: 'صورة الحوالة مطلوبة' });
     }
 
-    // Already pro?
-    if (req.user.plan === 'pro') {
-      return res.status(400).json({ error: 'حسابك مُفعّل بالفعل على خطة Pro!' });
-    }
-
     // Rate limit check
     const rlStatus = getRateLimitStatus(req.user);
     if (rlStatus.blocked) {
@@ -61,7 +56,7 @@ router.post('/create', protect, async (req, res) => {
     // Check for existing pending request
     const existing = await UpgradeRequest.findOne({ user: req.user._id, status: 'pending' });
     if (existing) {
-      return res.status(400).json({ error: 'لديك طلب معلق بالفعل. يرجى انتظار المراجعة.' });
+      return res.status(400).json({ error: 'لديك طلب معلق بالفعل. يرجى انتظار المراجعة. (LOCAL_BACKEND)' });
     }
 
     // Create upgrade request in DB
@@ -81,7 +76,7 @@ router.post('/create', protect, async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'تم تسجيل طلب الترقية بنجاح. جاري التحقق الذكي...',
+      message: 'تم تسجيل طلبك بنجاح. سيتم مراجعته يدوياً وتفعيل الرصيد الإضافي خلال دقائق.',
       requestId: request._id,
     });
   } catch (err) {
@@ -108,10 +103,11 @@ router.post('/update-status', protect, async (req, res) => {
       user.upgradeLastRejectedAt = null;
       user.upgradeLockedUntil = null;
       
-      // Set subscription duration (30 days) and resume limit (2)
+      // Set subscription duration (30 days) and grant 2 resume credits
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + 30);
-      user.resumesLimit = 2; 
+      user.resumeCredits = 2;
+      user.resumesLimit = (user.resumesLimit || 0) + 2; 
       user.subscriptionEndDate = endDate;
       await user.save();
 
@@ -122,6 +118,8 @@ router.post('/update-status', protect, async (req, res) => {
         status: 'approved',
         plan: 'pro',
         isPremium: true,
+        resumeCredits: user.resumeCredits,
+        resumesLimit: user.resumesLimit,
         userName: user.fullName,
         userEmail: user.email,
         userId: user._id.toString(),
@@ -221,10 +219,11 @@ router.post('/auto-approve', async (req, res) => {
     user.upgradeLastRejectedAt = null;
     user.upgradeLockedUntil = null;
 
-    // Set subscription duration (30 days) and resume limit
+    // Set subscription duration (30 days) and grant resume credits
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 30);
-    user.resumesLimit = targetLimit; 
+    user.resumeCredits = targetLimit;
+    user.resumesLimit = (user.resumesLimit || 0) + targetLimit; 
     user.subscriptionEndDate = endDate;
     await user.save();
 
@@ -235,6 +234,8 @@ router.post('/auto-approve', async (req, res) => {
       status: 'approved',
       plan: targetPlan,
       isPremium: true,
+      resumeCredits: user.resumeCredits,
+      resumesLimit: user.resumesLimit,
       userName: user.fullName,
       userEmail: user.email,
       userId: user._id.toString(),

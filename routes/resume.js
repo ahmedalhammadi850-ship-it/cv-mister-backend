@@ -14,7 +14,7 @@ router.post('/', protect, async (req, res) => {
     const Resume = require('../models/Resume');
     const User = require('../models/User');
 
-    // 1. Get fresh user data from DB (to get latest resumesLimit & subscription info)
+    // 1. Get fresh user data from DB (to get latest credits & subscription info)
     const freshUser = await User.findById(req.user._id);
     if (!freshUser) return res.status(404).json({ error: 'المستخدم غير موجود' });
 
@@ -28,6 +28,7 @@ router.post('/', protect, async (req, res) => {
         freshUser.plan = 'free';
         freshUser.isPremium = false;
         freshUser.paymentStatus = 'none';
+        freshUser.resumeCredits = 0;
         await freshUser.save();
         return res.status(403).json({
           error: 'انتهت صلاحية اشتراكك. يرجى تجديد الاشتراك لإنشاء سير ذاتية جديدة.',
@@ -50,16 +51,14 @@ router.post('/', protect, async (req, res) => {
       }
     }
 
-    // 4. Enforce resumesLimit for ALL users (Free and Pro)
-    const userLimit = freshUser.resumesLimit || 2;
-    const resumeCount = await Resume.countDocuments({ userId: req.user._id });
+    // 4. Credit-based system: Check if user has credits to create a new resume
+    const credits = freshUser.resumeCredits || 0;
 
-    if (resumeCount >= userLimit) {
+    if (credits <= 0) {
       return res.status(403).json({ 
-        error: `لقد وصلت للحد الأقصى المسموح (${resumeCount}/${userLimit}). ${isPro ? 'يمكنك التواصل مع الإدارة لزيادة الحد.' : 'يرجى الترقية إلى Pro لزيادة الحد.'}`,
-        code: 'LIMIT_REACHED',
-        currentCount: resumeCount,
-        limit: userLimit
+        error: 'رصيدك من السير الذاتية قد نفد. يرجى الدفع للحصول على رصيد إضافي.',
+        code: 'CREDITS_EXHAUSTED',
+        resumeCredits: 0
       });
     }
 
@@ -102,7 +101,39 @@ router.post('/', protect, async (req, res) => {
     });
 
     const saved = await resume.save();
-    res.status(201).json(saved);
+
+    // ── Deduct 1 credit after successful save ─────────────────
+    freshUser.resumeCredits = Math.max((freshUser.resumeCredits || 0) - 1, 0);
+
+    // If credits reach 0, immediately downgrade to free
+    if (freshUser.resumeCredits <= 0) {
+      freshUser.plan = 'free';
+      freshUser.isPremium = false;
+      freshUser.paymentStatus = 'none';
+    }
+    await freshUser.save();
+
+    // Emit real-time update so frontend syncs immediately
+    try {
+      const { emitStatusUpdate } = require('../socketManager');
+      emitStatusUpdate({
+        requestId: freshUser._id.toString(),
+        action: freshUser.resumeCredits <= 0 ? 'deactivate' : 'credit-update',
+        status: freshUser.resumeCredits <= 0 ? 'none' : 'approved',
+        plan: freshUser.plan,
+        isPremium: freshUser.isPremium,
+        resumeCredits: freshUser.resumeCredits,
+        resumesLimit: freshUser.resumesLimit,
+        userName: freshUser.fullName,
+        userEmail: freshUser.email,
+        userId: freshUser._id.toString(),
+      }, freshUser._id.toString());
+    } catch (socketErr) {
+      console.warn('[Socket] Failed to emit credit update:', socketErr.message);
+    }
+
+    // Include remaining credits in the response
+    res.status(201).json({ ...saved.toObject(), remainingCredits: freshUser.resumeCredits });
   } catch (err) {
     console.error('Create resume error:', err.message);
     res.status(500).json({ error: 'Failed to create resume', details: err.message });

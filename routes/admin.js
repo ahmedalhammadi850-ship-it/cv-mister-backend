@@ -172,10 +172,11 @@ router.post('/free-upgrade', isAdmin, async (req, res) => {
     user.isPremium = true;
     user.paymentStatus = 'approved';
 
-    // Set subscription duration (30 days) and resume limit (2)
+    // Set subscription duration (30 days) and grant 2 resume credits
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + 30);
-    user.resumesLimit = 2; 
+    user.resumeCredits = 2;
+    user.resumesLimit = (user.resumesLimit || 0) + 2; 
     user.subscriptionEndDate = endDate;
     await user.save();
 
@@ -327,11 +328,12 @@ router.post('/update-status/:id', isAdmin, async (req, res) => {
       user.upgradeLastRejectedAt = null;
       user.upgradeLockedUntil = null;
 
-      // Set subscription duration (30 days) and resume limit
+      // Set subscription duration (30 days) and grant resume credits
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + 30);
       user.subscriptionEndDate = user.subscriptionEndDate || endDate; 
-      user.resumesLimit = user.resumesLimit || targetLimit; 
+      user.resumeCredits = targetLimit;
+      user.resumesLimit = (user.resumesLimit || 0) + targetLimit; 
       
       // Mark all pending requests for this user as approved
       await UpgradeRequest.updateMany(
@@ -423,11 +425,17 @@ router.post('/update-status/:id', isAdmin, async (req, res) => {
       status: responseData.status,
       plan: user.plan,
       isPremium: user.isPremium,
+      resumeCredits: user.resumeCredits,
+      resumesLimit: user.resumesLimit,
+      subscriptionEndDate: user.subscriptionEndDate,
+      firebaseUID: user.firebaseUID,
       userName: user.fullName || 'User',
       userEmail: user.email,
       userId: user._id.toString(),
       rejectionReason: rejectionReason || null,
     }, user._id.toString());
+
+
 
     res.json(responseData);
   } catch (err) {
@@ -594,13 +602,14 @@ router.post('/templates/update-bulk', async (req, res) => {
 // Update User Subscription (End Date and Resume Limit)
 router.put('/users/:id/subscription', isAdmin, async (req, res) => {
   try {
-    const { subscriptionEndDate, resumesLimit } = req.body;
+    const { subscriptionEndDate, resumesLimit, resumeCredits } = req.body;
     const User = require('../models/User');
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' });
 
     if (subscriptionEndDate !== undefined) user.subscriptionEndDate = subscriptionEndDate;
     if (resumesLimit !== undefined) user.resumesLimit = resumesLimit;
+    if (resumeCredits !== undefined) user.resumeCredits = resumeCredits;
     
     await user.save();
 
@@ -612,6 +621,7 @@ router.put('/users/:id/subscription', isAdmin, async (req, res) => {
         plan: user.plan, 
         isPremium: user.isPremium,
         subscriptionEndDate: user.subscriptionEndDate,
+        resumeCredits: user.resumeCredits,
         resumesLimit: user.resumesLimit
       } 
     });
