@@ -25,17 +25,23 @@ async function generatePdf(htmlContent, cssContent = '') {
 
   try {
     browser = await puppeteer.launch({
-      headless: 'new',
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium' || 'chromium',
       args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
+        "--disable-setuid-sandbox",
+        "--no-sandbox",
+        "--single-process",
+        "--no-zygote",
+        "--disable-dev-shm-usage"
       ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
     });
 
-    const page = await browser.newPage();
+    let page;
+    try {
+      page = await browser.newPage();
+    } catch (error) {
+      console.log("Error creating new page:", error);
+      throw error;
+    }
 
     // Build a self-contained HTML document with embedded fonts
     const fullHtml = `<!DOCTYPE html>
@@ -90,12 +96,18 @@ async function generatePdf(htmlContent, cssContent = '') {
     await page.setContent(fullHtml, { waitUntil: 'networkidle0' });
 
     // Generate the PDF
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      timeout: 60000,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
-    });
+    let pdfBuffer;
+    try {
+      pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        timeout: 60000,
+        margin: { top: '0', right: '0', bottom: '0', left: '0' },
+      });
+    } catch (error) {
+      console.log("Error generating PDF:", error);
+      throw error;
+    }
 
     return pdfBuffer;
   } finally {
