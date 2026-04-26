@@ -5,10 +5,12 @@
 
 // Lazy load puppeteer to avoid crashes if it's not installed (e.g. on Railway without specific buildpacks)
 let puppeteer;
+let chromium;
 try {
-  puppeteer = require('puppeteer');
+  puppeteer = require('puppeteer-core');
+  chromium = require('@sparticuz/chromium');
 } catch (e) {
-  console.warn('[PDF Service] ⚠️ Puppeteer module not found. PDF generation will be unavailable.');
+  console.warn('[PDF Service] ⚠️ Puppeteer-core or Chromium module not found. PDF generation will be unavailable.');
 }
 
 /**
@@ -26,14 +28,11 @@ async function generatePdf(htmlContent, cssContent = '') {
   try {
     try {
       browser = await puppeteer.launch({
-        args: [
-          "--disable-setuid-sandbox",
-          "--no-sandbox",
-          "--single-process",
-          "--no-zygote",
-          "--disable-dev-shm-usage"
-        ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+        ignoreHTTPSErrors: true,
       });
     } catch (launchError) {
       console.error("[PDF Service] Failed to launch browser:", launchError);
