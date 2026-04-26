@@ -178,17 +178,19 @@ async function generatePdf(htmlContent, cssContent = '') {
       break-after: auto;
     }
 
-    /* Page content fills the A4 frame */
+    /* Page content fills the A4 frame — no !important to avoid overriding templates */
     .a4-page-content {
-      width: 100% !important;
-      height: 100% !important;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
-    /* Template root must fill the page */
+    /* Template root fills the page — no !important to preserve template layouts */
     [data-cv-root] {
-      width: 100% !important;
-      min-height: 100% !important;
+      width: 100%;
+      min-height: 100%;
       flex: 1;
     }
 
