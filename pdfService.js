@@ -52,7 +52,10 @@ async function generatePdf(fullPageHtml) {
       deviceScaleFactor: 2,
     });
 
-    // ── 3. Force Light Mode ─────────────────────────────────────
+    // ── 3. Force Screen Media Type & Light Mode ──────────────────
+    // CRITICAL: This guarantees the PDF looks EXACTLY like the screen preview.
+    // Without this, the browser applies @media print rules which ruin the layout.
+    await page.emulateMediaType('screen');
     await page.emulateMediaFeatures([
       { name: 'prefers-color-scheme', value: 'light' },
     ]);
@@ -74,40 +77,23 @@ async function generatePdf(fullPageHtml) {
       /* ── Force Light Mode ─────────────────────────── */
       html, :root { color-scheme: light !important; }
 
-      /* ── Hide ALL UI elements — show ONLY the resume ── */
-      nav, header, footer,
-      .navbar, .sidebar-panel, .form-panel, .builder-sidebar,
-      .toolbar, .zoom-controls, .zoom-bar, .floating-controls,
-      .no-print, .draggable-canvas-controls, .page-footer,
-      .mobile-menu, .mobile-nav, .toast-container, .toaster,
-      .subscription-widget, .chat-widget,
-      [class*="Toaster"], [class*="modal"], [class*="overlay"],
-      [id*="chat"], [class*="chat"], iframe,
-      .builder-layout > :not(.preview-panel),
-      .builder-content > :not(.preview-panel) {
-        display: none !important;
-        visibility: hidden !important;
-        width: 0 !important;
-        height: 0 !important;
-        overflow: hidden !important;
-        opacity: 0 !important;
-      }
-
       /* ── Show the resume preview panel full-width ──── */
       .preview-panel, .print-container {
         position: static !important;
         transform: none !important;
-        width: ${A4_WIDTH_PX}px !important;
+        width: 100% !important;
+        max-width: ${A4_WIDTH_PX}px !important;
         margin: 0 !important;
         padding: 0 !important;
         overflow: visible !important;
-        display: block !important;  /* override flex to prevent gap */
+        display: block !important;
         gap: 0 !important;
+        background: transparent !important;
       }
 
       /* ── Body reset for clean rendering ────────────── */
       html, body {
-        width: ${A4_WIDTH_PX}px !important;
+        width: 100% !important;
         max-width: ${A4_WIDTH_PX}px !important;
         height: auto !important;
         margin: 0 !important;
@@ -116,25 +102,7 @@ async function generatePdf(fullPageHtml) {
         background: #ffffff !important;
       }
 
-      /* ── Builder layout: collapse to single column ── */
-      .builder-layout, .builder-content, .builder-wrapper,
-      main, #root, #app {
-        display: block !important;
-        width: ${A4_WIDTH_PX}px !important;
-        max-width: ${A4_WIDTH_PX}px !important;
-        height: auto !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: visible !important;
-      }
-
-      /* ── Hide off-screen measurement containers ───── */
-      [style*="left: -9999"], [style*="left:-9999"],
-      [style*="position: absolute"][style*="visibility: hidden"] {
-        display: none !important;
-      }
-
-      /* ── A4 Page: strict dimensions + page breaks ── */
+      /* ── A4 Page: strict dimensions ────────────────── */
       @page {
         size: 210mm 297mm;
         margin: 0;
@@ -146,15 +114,14 @@ async function generatePdf(fullPageHtml) {
         min-height: 297mm !important;
         max-height: 297mm !important;
         overflow: hidden !important;
-        page-break-after: always;
-        break-after: page;
         margin: 0 !important;
+        padding: 0 !important;
         border: none !important;
         box-shadow: none !important;
-        position: relative;
+        position: relative !important;
         float: none !important;
-      }
-      .a4-page-outer:last-of-type {
+        page-break-inside: avoid !important;
+        /* CRITICAL FIX FOR BLANK PAGE: Removing page-break-after: always */
         page-break-after: auto !important;
         break-after: auto !important;
       }
@@ -168,10 +135,10 @@ async function generatePdf(fullPageHtml) {
 
       /* ── Typography: crisp fonts for PDF ────────────── */
       html, body {
-        text-rendering: optimizeLegibility;
-        -webkit-font-smoothing: antialiased;
-        font-variant-ligatures: common-ligatures;
-        font-feature-settings: 'liga' 1, 'calt' 1;
+        text-rendering: optimizeLegibility !important;
+        -webkit-font-smoothing: antialiased !important;
+        font-variant-ligatures: common-ligatures !important;
+        font-feature-settings: 'liga' 1, 'calt' 1 !important;
       }
 
       /* ── Arabic shaping ────────────────────────────── */
@@ -220,10 +187,6 @@ async function generatePdf(fullPageHtml) {
     await page.evaluate(() => {
       const resume = document.querySelector('.print-container') || document.querySelector('.preview-panel');
       if (resume) {
-        // Remove ALL chat widgets, iframes, and scripts explicitly before clearing body
-        document.querySelectorAll('iframe, script, [id*="chat"], [class*="chat"]').forEach(el => el.remove());
-        
-        // Move resume to body and clear the rest
         document.body.innerHTML = '';
         document.body.appendChild(resume);
       }
