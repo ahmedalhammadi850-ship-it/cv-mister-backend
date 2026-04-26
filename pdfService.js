@@ -67,7 +67,7 @@ async function generatePdf(htmlContent, cssContent = '') {
   <meta name="viewport" content="width=${A4_WIDTH_PX}, initial-scale=1.0">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Almarai:wght@300;400;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=Readex+Pro:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Cairo:wght@300;400;500;600;700;800&family=Almarai:wght@300;400;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=Readex+Pro:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     /* ── Print & page setup ─────────────────────────── */
     @page {
@@ -87,7 +87,7 @@ async function generatePdf(htmlContent, cssContent = '') {
       margin: 0;
       padding: 0;
       background: #ffffff;
-      font-family: 'Inter', 'Readex Pro', 'Cairo', 'Almarai', sans-serif;
+      font-family: 'Roboto', 'Arial', sans-serif;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
