@@ -82,6 +82,7 @@ async function generatePdf(fullPageHtml) {
       .mobile-menu, .mobile-nav, .toast-container, .toaster,
       .subscription-widget, .chat-widget,
       [class*="Toaster"], [class*="modal"], [class*="overlay"],
+      [id*="chat"], [class*="chat"], iframe,
       .builder-layout > :not(.preview-panel),
       .builder-content > :not(.preview-panel) {
         display: none !important;
@@ -89,6 +90,7 @@ async function generatePdf(fullPageHtml) {
         width: 0 !important;
         height: 0 !important;
         overflow: hidden !important;
+        opacity: 0 !important;
       }
 
       /* ── Show the resume preview panel full-width ──── */
