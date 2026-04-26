@@ -1,6 +1,8 @@
 // ============================================================
-// CV-Mister — PDF Generation Service (Puppeteer)
-// HIGH-QUALITY — Pixel-perfect PDF export, identical to preview.
+// CV-Mister — PDF Generation Service v3.0 (Puppeteer)
+// MIRROR-IMAGE EXPORT — Pixel-perfect PDF, identical to preview.
+// Engineered for FlowCV-level quality, ATS compatibility,
+// and perfect Arabic shaping.
 // ============================================================
 
 // Lazy load puppeteer to avoid crashes if it's not installed
@@ -13,7 +15,7 @@ try {
   console.warn('[PDF Service] ⚠️ Puppeteer-core or Chromium module not found. PDF generation will be unavailable.');
 }
 
-// A4 dimensions at 96 DPI (matches browser CSS px)
+// A4 dimensions at 96 DPI (matches browser CSS px exactly)
 const A4_WIDTH_PX = 794;
 const A4_HEIGHT_PX = 1123;
 
@@ -30,11 +32,12 @@ async function generatePdf(htmlContent, cssContent = '') {
   let browser = null;
 
   try {
-    // ── Launch browser ──────────────────────────────────────────
+    // ── 1. Launch browser ───────────────────────────────────────
+    console.log('[PDF Service] Launching headless browser...');
     try {
       browser = await puppeteer.launch({
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
+        args: [...chromium.args, '--font-render-hinting=none', '--disable-gpu-compositing'],
+        defaultViewport: null, // We set viewport manually below
         executablePath: await chromium.executablePath(),
         headless: chromium.headless,
         ignoreHTTPSErrors: true,
@@ -52,70 +55,110 @@ async function generatePdf(htmlContent, cssContent = '') {
       throw error;
     }
 
-    // ── Set viewport to exact A4 pixel dimensions for accurate rendering ──
+    // ── 2. Configure viewport — exact A4 at Retina 2x ──────────
     await page.setViewport({
       width: A4_WIDTH_PX,
       height: A4_HEIGHT_PX,
-      deviceScaleFactor: 2, // 2x for crisp/retina quality
+      deviceScaleFactor: 2, // Retina for crisp text and borders
     });
 
-    // ── Force Light Mode to ensure consistent colors ──
-    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
+    // ── 3. Force Light Mode — prevent dark mode color interference ─
+    await page.emulateMediaFeatures([
+      { name: 'prefers-color-scheme', value: 'light' },
+    ]);
 
-    // ── Build a self-contained HTML document ─────────────────────
+    // ── 4. Build self-contained HTML document ────────────────────
     const fullHtml = `<!DOCTYPE html>
 <html lang="ar" dir="auto">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=${A4_WIDTH_PX}, initial-scale=1.0">
+
+  <!-- ── Web Fonts: Full weight spectrum for Roboto + Cairo ── -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&family=Cairo:wght@300;400;500;600;700;800&family=Almarai:wght@300;400;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=Readex+Pro:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
   <style>
-    /* ── Print & page setup ─────────────────────────── */
+    /* ==========================================================
+       LAYER 1: Page & Print Setup
+       ========================================================== */
     @page {
       size: 210mm 297mm;
       margin: 0;
     }
 
+    /* ==========================================================
+       LAYER 2: Universal Reset — Box Model + Color Fidelity
+       ========================================================== */
     *, *::before, *::after {
-      box-sizing: border-box;
+      box-sizing: border-box !important;
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
       color-adjust: exact !important;
     }
 
+    /* ==========================================================
+       LAYER 3: Root Typography & Arabic Shaping
+       ========================================================== */
     html, body {
-      width: ${A4_WIDTH_PX}px !important; /* Force exact width */
+      width: ${A4_WIDTH_PX}px !important;
+      max-width: ${A4_WIDTH_PX}px !important;
       margin: 0;
       padding: 0;
+      overflow-x: hidden;
       background: #ffffff;
       font-family: 'Roboto', 'Cairo', 'Arial', sans-serif !important;
-      font-weight: 500; /* Slightly bolder for PDF sharpness */
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      /* Arabic shaping: ensure ligatures and connected letters */
+      text-rendering: optimizeLegibility;
+      font-variant-ligatures: common-ligatures;
+      font-feature-settings: 'liga' 1, 'calt' 1;
     }
 
-    /* Force all text elements to have at least font-weight 500 to combat PDF thinness */
-    p, span, div, li, td, th {
+    /* ==========================================================
+       LAYER 4: Font Weight Compensation
+       PDF rendering makes text appear ~15% thinner than screen.
+       We compensate by bumping body text to 500 and headings to 700+.
+       ========================================================== */
+    p, span, li, td, th, dd, dt, label, a {
       font-weight: 500;
     }
 
-    /* Preserve headings and bold text */
-    h1, h2, h3, h4, h5, h6, strong, b, [style*="font-weight: 700"], [style*="font-weight: 800"], [style*="font-weight: 900"] {
+    /* Headings: enforce bold weight */
+    h1, h2, h3, h4, h5, h6 {
+      font-weight: 700;
+    }
+
+    /* Preserve inline bold/bolder styles set by templates */
+    strong, b {
+      font-weight: 800 !important;
+    }
+
+    /* Allow template inline styles to win for explicitly bold elements */
+    [style*="font-weight: 700"],
+    [style*="font-weight:700"],
+    [style*="font-weight: 800"],
+    [style*="font-weight:800"],
+    [style*="font-weight: 900"],
+    [style*="font-weight:900"] {
       font-weight: inherit !important;
     }
 
-    /* ── Anti-break rules for clean pagination ─────── */
-    .resume-section { break-inside: avoid; page-break-inside: avoid; }
-    .experience-item, .education-item, .project-item,
-    .certificate-item, .award-item, .volunteer-item {
-      break-inside: avoid;
-      page-break-inside: avoid;
+    /* ==========================================================
+       LAYER 5: Arabic Text — Perfect Shaping & Direction
+       ========================================================== */
+    [dir="rtl"], [dir="rtl"] * {
+      text-rendering: optimizeLegibility !important;
+      font-variant-ligatures: common-ligatures !important;
+      font-feature-settings: 'liga' 1, 'calt' 1 !important;
+      word-spacing: 0.02em;
     }
-    p, li { widows: 3; orphans: 3; }
 
-    /* ── Page break between A4 pages ──────────────── */
+    /* ==========================================================
+       LAYER 6: A4 Page Container — Strict Dimensions
+       ========================================================== */
     .a4-page-outer {
       width: 210mm !important;
       height: 297mm !important;
@@ -125,46 +168,88 @@ async function generatePdf(htmlContent, cssContent = '') {
       page-break-after: always;
       break-after: page;
       margin: 0 !important;
+      padding: 0;
       border: none !important;
       box-shadow: none !important;
+      position: relative;
     }
     .a4-page-outer:last-child {
       page-break-after: auto;
       break-after: auto;
     }
 
-    /* ── Hide non-printable elements ──────────────── */
-    .no-print, .draggable-canvas-controls, 
-    .page-footer, .zoom-controls { 
-      display: none !important; 
+    /* Page content fills the A4 frame */
+    .a4-page-content {
+      width: 100% !important;
+      height: 100% !important;
+      overflow: hidden;
     }
 
-    /* ── Remove any scroll/drag wrappers ─────────── */
+    /* Template root must fill the page */
+    [data-cv-root] {
+      width: 100% !important;
+      min-height: 100% !important;
+      flex: 1;
+    }
+
+    /* ==========================================================
+       LAYER 7: Anti-Break Rules for Clean Pagination
+       ========================================================== */
+    .resume-section { break-inside: avoid; page-break-inside: avoid; }
+    .experience-item, .education-item, .project-item,
+    .certificate-item, .award-item, .volunteer-item {
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+    p, li { widows: 3; orphans: 3; }
+
+    /* ==========================================================
+       LAYER 8: Hide Non-Printable Elements
+       ========================================================== */
+    .no-print, .draggable-canvas-controls,
+    .page-footer, .zoom-controls,
+    [style*="left: -9999"],
+    [style*="position: absolute"][style*="visibility: hidden"] {
+      display: none !important;
+    }
+
+    /* ==========================================================
+       LAYER 9: Remove Scroll/Drag Wrappers
+       ========================================================== */
     .print-container {
       display: block !important;
       transform: none !important;
       position: static !important;
+      width: ${A4_WIDTH_PX}px !important;
     }
 
-    /* ── User-injected styles (from frontend) ─────── */
+    /* ==========================================================
+       LAYER 10: User-Injected Styles (from Frontend)
+       ========================================================== */
     ${cssContent}
   </style>
 </head>
-<body>
+<body dir="auto" lang="ar">
   ${htmlContent}
 </body>
 </html>`;
 
-    // ── Load content and wait for fonts + images ────────────────
-    await page.setContent(fullHtml, { 
+    // ── 5. Load content and wait for full network idle ───────────
+    console.log('[PDF Service] Loading HTML content...');
+    await page.setContent(fullHtml, {
       waitUntil: 'networkidle0',
       timeout: 30000,
     });
 
-    // ── Extra wait for web fonts to fully render ────────────────
+    // ── 6. Wait for ALL web fonts to be fully loaded ─────────────
+    console.log('[PDF Service] Waiting for fonts...');
     await page.evaluate(() => document.fonts.ready);
 
-    // ── Generate high-quality PDF ───────────────────────────────
+    // ── 7. Small extra delay for complex layouts to settle ───────
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // ── 8. Generate high-quality PDF ─────────────────────────────
+    console.log('[PDF Service] Generating PDF...');
     let pdfBuffer;
     try {
       pdfBuffer = await page.pdf({
