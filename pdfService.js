@@ -99,15 +99,18 @@ async function generatePdf(fullPageHtml) {
         margin: 0 !important;
         padding: 0 !important;
         overflow: visible !important;
+        display: block !important;  /* override flex to prevent gap */
+        gap: 0 !important;
       }
 
       /* ── Body reset for clean rendering ────────────── */
       html, body {
         width: ${A4_WIDTH_PX}px !important;
         max-width: ${A4_WIDTH_PX}px !important;
+        height: auto !important;
         margin: 0 !important;
         padding: 0 !important;
-        overflow: hidden !important;
+        overflow: visible !important;
         background: #ffffff !important;
       }
 
@@ -117,6 +120,7 @@ async function generatePdf(fullPageHtml) {
         display: block !important;
         width: ${A4_WIDTH_PX}px !important;
         max-width: ${A4_WIDTH_PX}px !important;
+        height: auto !important;
         margin: 0 !important;
         padding: 0 !important;
         overflow: visible !important;
@@ -146,10 +150,11 @@ async function generatePdf(fullPageHtml) {
         border: none !important;
         box-shadow: none !important;
         position: relative;
+        float: none !important;
       }
-      .a4-page-outer:last-child {
-        page-break-after: auto;
-        break-after: auto;
+      .a4-page-outer:last-of-type {
+        page-break-after: auto !important;
+        break-after: auto !important;
       }
 
       /* ── Color fidelity ────────────────────────────── */
