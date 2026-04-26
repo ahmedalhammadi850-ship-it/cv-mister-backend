@@ -59,6 +59,9 @@ async function generatePdf(htmlContent, cssContent = '') {
       deviceScaleFactor: 2, // 2x for crisp/retina quality
     });
 
+    // ── Force Light Mode to ensure consistent colors ──
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
+
     // ── Build a self-contained HTML document ─────────────────────
     const fullHtml = `<!DOCTYPE html>
 <html lang="ar" dir="auto">
