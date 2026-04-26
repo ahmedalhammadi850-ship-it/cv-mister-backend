@@ -24,16 +24,21 @@ async function generatePdf(htmlContent, cssContent = '') {
   let browser = null;
 
   try {
-    browser = await puppeteer.launch({
-      args: [
-        "--disable-setuid-sandbox",
-        "--no-sandbox",
-        "--single-process",
-        "--no-zygote",
-        "--disable-dev-shm-usage"
-      ],
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
-    });
+    try {
+      browser = await puppeteer.launch({
+        args: [
+          "--disable-setuid-sandbox",
+          "--no-sandbox",
+          "--single-process",
+          "--no-zygote",
+          "--disable-dev-shm-usage"
+        ],
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : '/usr/bin/google-chrome'),
+      });
+    } catch (launchError) {
+      console.error("[PDF Service] Failed to launch browser:", launchError);
+      throw launchError;
+    }
 
     let page;
     try {
