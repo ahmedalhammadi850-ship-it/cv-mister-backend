@@ -83,13 +83,24 @@ async function generatePdf(htmlContent, cssContent = '') {
     }
 
     html, body {
-      width: ${A4_WIDTH_PX}px;
+      width: ${A4_WIDTH_PX}px !important; /* Force exact width */
       margin: 0;
       padding: 0;
       background: #ffffff;
-      font-family: 'Roboto', 'Arial', sans-serif;
+      font-family: 'Roboto', 'Cairo', 'Arial', sans-serif !important;
+      font-weight: 500; /* Slightly bolder for PDF sharpness */
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Force all text elements to have at least font-weight 500 to combat PDF thinness */
+    p, span, div, li, td, th {
+      font-weight: 500;
+    }
+
+    /* Preserve headings and bold text */
+    h1, h2, h3, h4, h5, h6, strong, b, [style*="font-weight: 700"], [style*="font-weight: 800"], [style*="font-weight: 900"] {
+      font-weight: inherit !important;
     }
 
     /* ── Anti-break rules for clean pagination ─────── */
