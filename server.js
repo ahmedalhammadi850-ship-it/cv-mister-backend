@@ -206,12 +206,15 @@ app.put('/api/admin/deactivate-pro/:id', isAdmin, async (req, res) => {
   }
 });
 
-// ── PDF Generation Endpoint ──────────────────────────────────
+// ── PDF Generation Endpoint (v4.0 — Pure Puppeteer) ──────────
 app.post('/api/generate-pdf', async (req, res) => {
   try {
-    const { html, css } = req.body;
-    if (!html) return res.status(400).json({ error: 'HTML content is required' });
-    const pdfBuffer = await generatePdf(html, css);
+    const { fullPageHtml } = req.body;
+    if (!fullPageHtml) {
+      return res.status(400).json({ error: 'fullPageHtml is required' });
+    }
+    console.log(`[PDF API] Received ${(JSON.stringify(req.body).length / 1024).toFixed(0)} KB payload`);
+    const pdfBuffer = await generatePdf(fullPageHtml);
     res.status(200).set({
       'Content-Type': 'application/pdf',
       'Content-Length': pdfBuffer.length
