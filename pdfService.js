@@ -1,8 +1,7 @@
 // ============================================================
-// CV-Mister — PDF Generation Service v4.0 (Pure Puppeteer)
-// MIRROR-IMAGE EXPORT — Zero DOM manipulation.
-// Frontend sends the full rendered page HTML → Puppeteer re-renders
-// it identically → page.pdf() captures a pixel-perfect PDF.
+// CV-Mister — PDF Generation Service v5.0 (Clean Puppeteer)
+// MIRROR-IMAGE EXPORT — Frontend sends clean resume-only HTML.
+// Puppeteer renders it identically → page.pdf() captures pixel-perfect PDF.
 // ============================================================
 
 let puppeteer;
@@ -18,11 +17,11 @@ const A4_WIDTH_PX = 794;
 const A4_HEIGHT_PX = 1123;
 
 /**
- * Generate a pixel-perfect PDF from the full rendered page HTML.
- * No cloneNode. No getComputedStyle. No manual CSS extraction.
- * Puppeteer re-renders the EXACT same HTML the user sees.
+ * Generate a pixel-perfect PDF from clean resume HTML.
+ * Frontend now sends ONLY the visible A4 pages + all stylesheets.
+ * No DOM manipulation needed — just render and capture.
  *
- * @param {string} fullPageHtml - The complete document HTML (document.documentElement.outerHTML)
+ * @param {string} fullPageHtml - Clean HTML document with resume pages only
  * @returns {Promise<Buffer>} PDF buffer
  */
 async function generatePdf(fullPageHtml) {
@@ -60,10 +59,10 @@ async function generatePdf(fullPageHtml) {
       { name: 'prefers-color-scheme', value: 'light' },
     ]);
 
-    // ── 4. Clean the HTML: strip scripts, inject print overrides ─
+    // ── 4. Clean the HTML: remove scripts, ensure DOCTYPE ────────
     let cleanHtml = fullPageHtml;
 
-    // Remove ALL <script> tags to prevent React hydration & errors
+    // Remove ALL <script> tags to prevent errors
     cleanHtml = cleanHtml.replace(/<script[\s\S]*?<\/script>/gi, '');
 
     // Remove dark mode class from <html> if present
@@ -71,27 +70,18 @@ async function generatePdf(fullPageHtml) {
       return match.replace(/\bdark\b/g, '').replace(/\s+/g, ' ').trim();
     });
 
-    // ── 5. Inject print-override CSS before </head> ─────────────
-    const printOverrideCSS = `
+    // Ensure DOCTYPE
+    if (!cleanHtml.startsWith('<!DOCTYPE') && !cleanHtml.startsWith('<!doctype')) {
+      cleanHtml = '<!DOCTYPE html>\n' + cleanHtml;
+    }
+
+    // ── 5. Inject additional PDF-specific overrides ──────────────
+    const pdfOverrides = `
     <style id="pdf-export-overrides">
-      /* ── Force Light Mode ─────────────────────────── */
+      /* Force Light Mode */
       html, :root { color-scheme: light !important; }
 
-      /* ── Show the resume preview panel full-width ──── */
-      .preview-panel, .print-container {
-        position: static !important;
-        transform: none !important;
-        width: 100% !important;
-        max-width: ${A4_WIDTH_PX}px !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        overflow: visible !important;
-        display: block !important;
-        gap: 0 !important;
-        background: transparent !important;
-      }
-
-      /* ── Body reset for clean rendering ────────────── */
+      /* Body reset */
       html, body {
         width: 100% !important;
         max-width: ${A4_WIDTH_PX}px !important;
@@ -102,7 +92,7 @@ async function generatePdf(fullPageHtml) {
         background: #ffffff !important;
       }
 
-      /* ── A4 Page: strict dimensions ────────────────── */
+      /* A4 Page dimensions */
       @page {
         size: 210mm 297mm;
         margin: 0;
@@ -119,21 +109,23 @@ async function generatePdf(fullPageHtml) {
         border: none !important;
         box-shadow: none !important;
         position: relative !important;
-        float: none !important;
-        page-break-inside: avoid !important;
-        /* CRITICAL FIX FOR BLANK PAGE: Removing page-break-after: always */
+        page-break-after: always !important;
+        break-after: page !important;
+      }
+
+      .a4-page-outer:last-child {
         page-break-after: auto !important;
         break-after: auto !important;
       }
 
-      /* ── Color fidelity ────────────────────────────── */
+      /* Color fidelity */
       *, *::before, *::after {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         color-adjust: exact !important;
       }
 
-      /* ── Typography: crisp fonts for PDF ────────────── */
+      /* Typography: crisp fonts for PDF */
       html, body {
         text-rendering: optimizeLegibility !important;
         -webkit-font-smoothing: antialiased !important;
@@ -141,14 +133,24 @@ async function generatePdf(fullPageHtml) {
         font-feature-settings: 'liga' 1, 'calt' 1 !important;
       }
 
-      /* ── Arabic shaping ────────────────────────────── */
+      /* Arabic shaping */
       [dir="rtl"], [dir="rtl"] * {
         text-rendering: optimizeLegibility !important;
         font-variant-ligatures: common-ligatures !important;
         font-feature-settings: 'liga' 1, 'calt' 1 !important;
       }
 
-      /* ── DraggableCanvas: remove transforms ────────── */
+      /* Print container */
+      .print-container {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        width: 100% !important;
+        gap: 0 !important;
+        background: transparent !important;
+      }
+
+      /* Remove DraggableCanvas transforms if any leaked through */
       .draggable-resume-canvas, .resume-canvas-wrapper,
       [class*="draggable"], [class*="canvas"] {
         transform: none !important;
@@ -156,50 +158,51 @@ async function generatePdf(fullPageHtml) {
         position: static !important;
         cursor: default !important;
         overflow: visible !important;
-        width: auto !important;
-        height: auto !important;
-        min-height: unset !important;
+      }
+
+      /* Hide UI elements that shouldn't be in PDF */
+      .nav-bar, .navbar, .form-panel, .sidebar, .no-print,
+      .builder-tabs-container, .save-indicator, .template-grid,
+      .category-grid, .btn-primary, .btn-secondary, .btn-premium,
+      [class*="Toaster"], [class*="chat-widget"], [class*="tidio"] {
+        display: none !important;
       }
     </style>`;
 
     // Inject before </head>
     if (cleanHtml.includes('</head>')) {
-      cleanHtml = cleanHtml.replace('</head>', printOverrideCSS + '\n</head>');
+      cleanHtml = cleanHtml.replace('</head>', pdfOverrides + '\n</head>');
     } else {
-      // Fallback: wrap in a full document
-      cleanHtml = `<!DOCTYPE html><html><head>${printOverrideCSS}</head><body>${cleanHtml}</body></html>`;
-    }
-
-    // Ensure DOCTYPE
-    if (!cleanHtml.startsWith('<!DOCTYPE') && !cleanHtml.startsWith('<!doctype')) {
-      cleanHtml = '<!DOCTYPE html>\n' + cleanHtml;
+      cleanHtml = `<!DOCTYPE html><html><head>${pdfOverrides}</head><body>${cleanHtml}</body></html>`;
     }
 
     // ── 6. Load the page in Puppeteer ───────────────────────────
-    console.log('[PDF Service] Loading full page HTML...');
+    console.log('[PDF Service] Loading clean resume HTML...');
     await page.setContent(cleanHtml, {
       waitUntil: 'networkidle0',
       timeout: 30000,
     });
 
-    // ── 6.5 BULLETPROOF CLEANUP: Remove everything except the resume ──
-    console.log('[PDF Service] Stripping extraneous DOM elements...');
+    // ── 7. Ensure only resume content remains ───────────────────
+    console.log('[PDF Service] Verifying resume content...');
     await page.evaluate(() => {
-      const resume = document.querySelector('.print-container') || document.querySelector('.preview-panel');
+      // Find the print-container (should be the only relevant element now)
+      const resume = document.querySelector('.print-container');
       if (resume) {
+        // Move it directly into body, remove everything else
         document.body.innerHTML = '';
         document.body.appendChild(resume);
       }
     });
 
-    // ── 7. Wait for fonts to fully load ─────────────────────────
+    // ── 8. Wait for fonts to fully load ─────────────────────────
     console.log('[PDF Service] Waiting for fonts...');
     await page.evaluateHandle('document.fonts.ready');
 
-    // ── 8. Extra settle time for complex layouts ────────────────
+    // ── 9. Extra settle time for complex layouts ────────────────
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    // ── 9. Generate PDF ─────────────────────────────────────────
+    // ── 10. Generate PDF ────────────────────────────────────────
     console.log('[PDF Service] Generating PDF...');
     const pdfBuffer = await page.pdf({
       format: 'A4',
