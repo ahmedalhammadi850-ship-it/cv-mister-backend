@@ -52,6 +52,7 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'https://cv-mister-frontend.vercel.app',
+  'https://cv-mister-frontend-sepia.vercel.app',
   /https:\/\/cv-mister-frontend-.*\.vercel\.app$/ // Matches all Vercel preview/branch deployments
 ];
 
