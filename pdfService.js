@@ -215,6 +215,20 @@ async function generatePdf(fullPageHtml) {
       timeout: 30000,
     });
 
+    // ── 6.5 BULLETPROOF CLEANUP: Remove everything except the resume ──
+    console.log('[PDF Service] Stripping extraneous DOM elements...');
+    await page.evaluate(() => {
+      const resume = document.querySelector('.print-container') || document.querySelector('.preview-panel');
+      if (resume) {
+        // Remove ALL chat widgets, iframes, and scripts explicitly before clearing body
+        document.querySelectorAll('iframe, script, [id*="chat"], [class*="chat"]').forEach(el => el.remove());
+        
+        // Move resume to body and clear the rest
+        document.body.innerHTML = '';
+        document.body.appendChild(resume);
+      }
+    });
+
     // ── 7. Wait for fonts to fully load ─────────────────────────
     console.log('[PDF Service] Waiting for fonts...');
     await page.evaluateHandle('document.fonts.ready');
