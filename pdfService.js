@@ -33,7 +33,7 @@ async function generatePdf(htmlContent, cssContent = '') {
           "--no-zygote",
           "--disable-dev-shm-usage"
         ],
-        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer.executablePath ? puppeteer.executablePath() : '/usr/bin/google-chrome'),
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || process.env.CHROME_BIN || '/usr/bin/google-chrome',
       });
     } catch (launchError) {
       console.error("[PDF Service] Failed to launch browser:", launchError);
