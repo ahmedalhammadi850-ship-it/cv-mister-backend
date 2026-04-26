@@ -242,8 +242,9 @@ async function generatePdf(htmlContent, cssContent = '') {
     });
 
     // ── 6. Wait for ALL web fonts to be fully loaded ─────────────
+    //    Using evaluateHandle for stable cross-boundary promise resolution
     console.log('[PDF Service] Waiting for fonts...');
-    await page.evaluate(() => document.fonts.ready);
+    await page.evaluateHandle('document.fonts.ready');
 
     // ── 7. Small extra delay for complex layouts to settle ───────
     await new Promise(resolve => setTimeout(resolve, 500));
