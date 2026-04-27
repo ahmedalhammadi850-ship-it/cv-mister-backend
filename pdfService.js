@@ -4,7 +4,7 @@ const chromium = require('@sparticuz/chromium');
 // Detect environment
 const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.RENDER;
 
-async function generatePdf(url) {
+async function generatePdf(html) {
   let browser = null;
 
   try {
@@ -29,16 +29,27 @@ async function generatePdf(url) {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36'
     );
 
-    // ضبط viewport مطابق A4
+    // ضبط High-DPI لضمان حدة الخطوط
     await page.setViewport({
       width: 794,
       height: 1123,
       deviceScaleFactor: 2
     });
 
-    // فتح الصفحة
-    console.log('[PDF] Opening URL:', url);
-    await page.goto(url, {
+    // ضبط المحتوى مباشرة (أكثر استقراراً من زيارة الرابط)
+    console.log('[PDF] Setting page content...');
+    
+    // حقن استايلات الطباعة لضمان دقة الألوان
+    const styledHtml = `
+      <style>
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        @page { size: A4; margin: 0; }
+        body { margin: 0; padding: 0; }
+      </style>
+      ${html}
+    `;
+
+    await page.setContent(styledHtml, {
       waitUntil: 'networkidle0',
       timeout: 60000
     });
@@ -46,27 +57,15 @@ async function generatePdf(url) {
     // انتظار الخطوط
     await page.evaluateHandle('document.fonts.ready');
 
-    // 🔥 انتظار العلامة التي تؤكد أن البيانات جاهزة
-    console.log('[PDF] Waiting for #pdf-ready marker...');
-    await page.waitForSelector('#pdf-ready', { timeout: 30000 });
-    console.log('[PDF] Data is ready, generating PDF...');
-
-    // تأخير إضافي للتأكد من اكتمال الرسم
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
     // تفعيل وضع الطباعة
     await page.emulateMediaType('print');
-
-    // إزالة أي عناصر UI
-    await page.evaluate(() => {
-      document.querySelectorAll('.no-print').forEach(el => el.remove());
-    });
 
     // إنشاء PDF
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
       preferCSSPageSize: true,
+      timeout: 60000,
       margin: {
         top: '0mm',
         right: '0mm',

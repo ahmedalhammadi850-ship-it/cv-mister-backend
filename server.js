@@ -204,21 +204,20 @@ app.put('/api/admin/deactivate-pro/:id', isAdmin, async (req, res) => {
   }
 });
 
-// ── PDF Generation Endpoint (v4.0 — Pure Puppeteer) ──────────
+// ── PDF Generation Endpoint (v4.0 — Pure HTML Content) ────────
 app.post('/api/generate-pdf', async (req, res) => {
   try {
-    // استقبال الرابط url بدلاً من html و css
-    const { url } = req.body;
+    // استقبال المحتوى HTML مباشرة من المتصفح
+    const { html } = req.body;
 
-    // التحقق من وجود الرابط
-    if (!url) {
-      return res.status(400).json({ error: 'الرابط (url) مطلوب لإنشاء ملف PDF' });
+    if (!html) {
+      return res.status(400).json({ error: 'المحتوى (html) مطلوب لإنشاء ملف PDF' });
     }
 
-    console.log(`[PDF API] Generating PDF for URL: ${url}`);
+    console.log(`[PDF API] Generating PDF from direct HTML content (${html.length} chars)`);
 
-    // استدعاء دالة generatePdf وتمرير الرابط
-    const pdfBuffer = await generatePdf(url);
+    // استدعاء دالة generatePdf وتمرير الـ HTML
+    const pdfBuffer = await generatePdf(html);
 
     // إرسال ملف PDF كاستجابة
     res.status(200).set({
