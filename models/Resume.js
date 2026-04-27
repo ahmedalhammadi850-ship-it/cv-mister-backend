@@ -148,17 +148,11 @@ const ResumeSchema = new Schema({
     sectionOrder:   [String],
   },
 
-  // Style configuration
-  styleConfig: {
-    accentColor:    { type: String, default: '#1E3A5F' },
-    fontSize:       { type: Number, default: 10.5 },
-    lineHeight:     { type: Number, default: 1.5 },
-    marginTop:      { type: Number, default: 20 },
-    marginBottom:   { type: Number, default: 20 },
-    marginSides:    { type: Number, default: 15 },
-    sectionGap:     { type: Number, default: 16 },
-    headerFontSize: { type: Number, default: 22 },
-  },
+  // Style configuration (Mixed to allow dynamic fields like headerAlign, nameFontSize, etc.)
+  styleConfig: { type: Schema.Types.Mixed, default: {} },
+
+  // Metadata (alignments, customTitles, sectionsStyles, pageBreaks, layoutColumns)
+  metadata: { type: Schema.Types.Mixed, default: {} },
 
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now },
