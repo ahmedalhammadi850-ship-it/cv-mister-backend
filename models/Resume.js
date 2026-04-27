@@ -116,7 +116,8 @@ const ResumeSchema = new Schema({
       'minimalist', 'tech', 'executive', 'academic', 'modern_sidebar',
       'refined', 'slate', 'border_grid', 'gradient_top', 'compact',
       'classic_corporate', 'modern_split', 'executive_line',
-      'legacy_clean', 'minimal_bold', 'subtle_bar', 'sky_split', 'ocean_blue'
+      'legacy_clean', 'minimal_bold', 'subtle_bar', 'sky_split', 'ocean_blue',
+      'modern_wave', 'ats'
     ],
     default: 'professional',
   },

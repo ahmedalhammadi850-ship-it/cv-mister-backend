@@ -203,8 +203,14 @@ router.put('/:id', protect, async (req, res) => {
     if (req.body.title) resume.title = req.body.title;
     if (req.body.templateId) resume.templateId = req.body.templateId;
     if (req.body.category) resume.category = req.body.category;
-    if (req.body.styleConfig) resume.styleConfig = req.body.styleConfig;
-    if (req.body.metadata) resume.metadata = req.body.metadata;
+    if (req.body.styleConfig) {
+      resume.styleConfig = req.body.styleConfig;
+      resume.markModified('styleConfig');
+    }
+    if (req.body.metadata) {
+      resume.metadata = req.body.metadata;
+      resume.markModified('metadata');
+    }
 
     const saved = await resume.save();
     res.json(saved);
