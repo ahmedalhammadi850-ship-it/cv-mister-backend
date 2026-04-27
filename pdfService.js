@@ -1,13 +1,31 @@
-const puppeteer = require('puppeteer');
+const puppeteerCore = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
+
+// Detect environment
+const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.RENDER;
 
 async function generatePdf(url) {
   let browser = null;
 
   try {
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    if (IS_PRODUCTION) {
+      // ── Production (Render / Cloud) ──
+      // Use @sparticuz/chromium which bundles a compatible Chromium binary
+      browser = await puppeteerCore.launch({
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+      });
+    } else {
+      // ── Local Development ──
+      // Use full puppeteer with bundled Chrome
+      const puppeteer = require('puppeteer');
+      browser = await puppeteer.launch({
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+    }
 
     const page = await browser.newPage();
 
@@ -26,7 +44,11 @@ async function generatePdf(url) {
     await page.evaluateHandle('document.fonts.ready');
 
     // انتظار اكتمال المحتوى
-    await page.waitForSelector('.print-container', { timeout: 10000 });
+    try {
+      await page.waitForSelector('.print-container', { timeout: 10000 });
+    } catch (e) {
+      console.warn('[PDF] .print-container not found, continuing anyway...');
+    }
 
     // 🔥 أهم خطوة: تفعيل وضع الطباعة
     await page.emulateMediaType('print');
