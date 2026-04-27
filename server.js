@@ -209,19 +209,28 @@ app.put('/api/admin/deactivate-pro/:id', isAdmin, async (req, res) => {
 // ── PDF Generation Endpoint (v4.0 — Pure Puppeteer) ──────────
 app.post('/api/generate-pdf', async (req, res) => {
   try {
-    const { fullPageHtml } = req.body;
-    if (!fullPageHtml) {
-      return res.status(400).json({ error: 'fullPageHtml is required' });
+    // استقبال الرابط url بدلاً من html و css
+    const { url } = req.body;
+
+    // التحقق من وجود الرابط
+    if (!url) {
+      return res.status(400).json({ error: 'الرابط (url) مطلوب لإنشاء ملف PDF' });
     }
-    console.log(`[PDF API] Received ${(JSON.stringify(req.body).length / 1024).toFixed(0)} KB payload`);
-    const pdfBuffer = await generatePdf(fullPageHtml);
+
+    console.log(`[PDF API] Generating PDF for URL: ${url}`);
+
+    // استدعاء دالة generatePdf وتمرير الرابط
+    const pdfBuffer = await generatePdf(url);
+
+    // إرسال ملف PDF كاستجابة
     res.status(200).set({
       'Content-Type': 'application/pdf',
       'Content-Length': pdfBuffer.length
     }).end(pdfBuffer, 'binary');
+
   } catch (err) {
     console.error('[PDF Generation Error]', err);
-    res.status(500).json({ error: 'PDF generation failed', details: err.message });
+    res.status(500).json({ error: 'فشل إنشاء ملف PDF', details: err.message });
   }
 });
 
