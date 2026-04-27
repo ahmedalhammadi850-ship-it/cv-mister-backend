@@ -9,8 +9,6 @@ async function generatePdf(url) {
 
   try {
     if (IS_PRODUCTION) {
-      // ── Production (Render / Cloud) ──
-      // Use @sparticuz/chromium which bundles a compatible Chromium binary
       browser = await puppeteerCore.launch({
         args: chromium.args,
         defaultViewport: chromium.defaultViewport,
@@ -18,8 +16,6 @@ async function generatePdf(url) {
         headless: chromium.headless,
       });
     } else {
-      // ── Local Development ──
-      // Use full puppeteer with bundled Chrome
       const puppeteer = require('puppeteer');
       browser = await puppeteer.launch({
         headless: 'new',
@@ -29,12 +25,19 @@ async function generatePdf(url) {
 
     const page = await browser.newPage();
 
-    // محاكاة متصفح حقيقي
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36'
     );
 
+    // ضبط viewport مطابق A4
+    await page.setViewport({
+      width: 794,
+      height: 1123,
+      deviceScaleFactor: 2
+    });
+
     // فتح الصفحة
+    console.log('[PDF] Opening URL:', url);
     await page.goto(url, {
       waitUntil: 'networkidle0',
       timeout: 60000
@@ -43,26 +46,20 @@ async function generatePdf(url) {
     // انتظار الخطوط
     await page.evaluateHandle('document.fonts.ready');
 
-    // انتظار اكتمال المحتوى
-    try {
-      await page.waitForSelector('.print-container', { timeout: 10000 });
-    } catch (e) {
-      console.warn('[PDF] .print-container not found, continuing anyway...');
-    }
+    // 🔥 انتظار العلامة التي تؤكد أن البيانات جاهزة
+    console.log('[PDF] Waiting for #pdf-ready marker...');
+    await page.waitForSelector('#pdf-ready', { timeout: 30000 });
+    console.log('[PDF] Data is ready, generating PDF...');
 
-    // 🔥 أهم خطوة: تفعيل وضع الطباعة
+    // تأخير إضافي للتأكد من اكتمال الرسم
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // تفعيل وضع الطباعة
     await page.emulateMediaType('print');
 
-    // 🔥 إزالة أي عناصر UI (اختياري)
+    // إزالة أي عناصر UI
     await page.evaluate(() => {
       document.querySelectorAll('.no-print').forEach(el => el.remove());
-    });
-
-    // 🔥 ضبط viewport مطابق A4
-    await page.setViewport({
-      width: 794,
-      height: 1123,
-      deviceScaleFactor: 2
     });
 
     // إنشاء PDF
@@ -78,6 +75,7 @@ async function generatePdf(url) {
       }
     });
 
+    console.log('[PDF] Generated successfully, size:', pdfBuffer.length, 'bytes');
     return pdfBuffer;
 
   } catch (error) {

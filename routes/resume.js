@@ -88,6 +88,7 @@ router.post('/', protect, async (req, res) => {
       userId: req.user._id,
       title: req.body.title || 'Untitled Resume',
       content: req.body.content || {},
+      metadata: req.body.metadata || {},
       templateId: req.body.templateId || 'professional',
       category: req.body.category || 'chronological',
       styleConfig: req.body.styleConfig || {},
@@ -203,6 +204,7 @@ router.put('/:id', protect, async (req, res) => {
     if (req.body.templateId) resume.templateId = req.body.templateId;
     if (req.body.category) resume.category = req.body.category;
     if (req.body.styleConfig) resume.styleConfig = req.body.styleConfig;
+    if (req.body.metadata) resume.metadata = req.body.metadata;
 
     const saved = await resume.save();
     res.json(saved);
