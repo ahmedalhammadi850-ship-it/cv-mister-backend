@@ -6,11 +6,11 @@
 const express = require('express');
 const router = express.Router();
 const Resume = require('../models/Resume');
+const Content = require('../models/Content');
 const { protect } = require('../middleware/auth');
 
 router.post('/', protect, async (req, res) => {
   try {
-    const Content = require('../models/Content');
     const Resume = require('../models/Resume');
     const User = require('../models/User');
 
