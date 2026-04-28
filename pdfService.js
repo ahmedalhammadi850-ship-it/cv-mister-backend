@@ -4,12 +4,28 @@ const chromium = require('@sparticuz/chromium');
 // Detect environment
 const IS_PRODUCTION = process.env.NODE_ENV === 'production' || process.env.RENDER;
 
+// URLs for production fonts to ensure high-fidelity Arabic rendering
+const ARABIC_FONTS = [
+  'https://fonts.gstatic.com/s/readexpro/v27/SLXnc1bJ7HE5YDoGPuzj_dh8uc7wUy8ZQQyX2KY8TL0kGZN6blTCBkOmgg.ttf', // Readex Pro Bold
+  'https://fonts.gstatic.com/s/readexpro/v27/SLXnc1bJ7HE5YDoGPuzj_dh8uc7wUy8ZQQyX2KY8TL0kGZN6blTC4USmgg.ttf', // Readex Pro Regular
+];
+
 async function generatePdf(html) {
   let browser = null;
 
   try {
     if (IS_PRODUCTION) {
-      // Enable font rendering for Arabic and other non-Latin scripts
+      // 🚀 THE FIX: Load fonts directly into the Chromium environment on Render/AWS
+      // This bypasses issues with web font downloading and subsetting
+      for (const fontUrl of ARABIC_FONTS) {
+        try {
+          await chromium.font(fontUrl);
+          console.log('[PDF] Loaded font:', fontUrl.split('/').pop());
+        } catch (e) {
+          console.error('[PDF] Failed to load font:', fontUrl, e);
+        }
+      }
+
       chromium.setGraphicsMode = false;
       
       browser = await puppeteerCore.launch({
@@ -17,6 +33,8 @@ async function generatePdf(html) {
           ...chromium.args,
           '--font-render-hinting=none',
           '--disable-font-subpixel-positioning',
+          '--no-sandbox',
+          '--disable-setuid-sandbox'
         ],
         defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath(),
@@ -43,18 +61,21 @@ async function generatePdf(html) {
       deviceScaleFactor: 2
     });
 
-    // ضبط المحتوى مباشرة (أكثر استقراراً من زيارة الرابط)
     console.log('[PDF] Setting page content...');
     
-    // حقن استايلات الطباعة + تحميل الخطوط العربية مباشرة عبر @font-face
     const styledHtml = `
       <style>
-        /* Force load Arabic fonts via Google Fonts API directly */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Cairo:wght@400;600;700&family=Almarai:wght@300;400;700;800&family=Readex+Pro:wght@200;300;400;500;600;700&family=Tajawal:wght@300;400;500;700;800&family=Roboto:wght@300;400;500;700&display=swap');
+        /* Embed Google Fonts definition */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Readex+Pro:wght@200;300;400;500;600;700&family=Cairo:wght@400;700&family=Tajawal:wght@400;700&display=swap');
         
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         @page { size: A4; margin: 0; }
         body { margin: 0; padding: 0; }
+        
+        /* Global Font Fix for Arabic on Render */
+        [dir="rtl"], [dir="rtl"] * {
+          font-family: 'Readex Pro', 'Cairo', 'Tajawal', sans-serif !important;
+        }
       </style>
       ${html}
     `;
@@ -64,37 +85,11 @@ async function generatePdf(html) {
       timeout: 60000
     });
 
-    // انتظار الخطوط — مع محاولات متعددة
-    console.log('[PDF] Waiting for fonts to load...');
+    // Wait for fonts to be ready
     await page.evaluateHandle('document.fonts.ready');
     
-    // انتظار إضافي لضمان تحميل الخطوط العربية بالكامل
-    const fontsLoaded = await page.evaluate(async () => {
-      // Force load critical Arabic fonts
-      const testFonts = [
-        'Readex Pro', 'IBM Plex Sans Arabic', 'Cairo', 
-        'Tajawal', 'Almarai', 'Inter', 'Roboto'
-      ];
-      
-      const results = {};
-      for (const font of testFonts) {
-        try {
-          const loaded = await document.fonts.load(`16px "${font}"`);
-          results[font] = loaded.length > 0;
-        } catch(e) {
-          results[font] = false;
-        }
-      }
-      
-      // Wait for all fonts to settle
-      await document.fonts.ready;
-      return results;
-    });
-    
-    console.log('[PDF] Font loading results:', fontsLoaded);
-    
-    // انتظار 1.5 ثانية إضافية لضمان تقديم الخطوط
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Add a small delay for Render to catch up
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     // تفعيل وضع الطباعة
     await page.emulateMediaType('print');
@@ -104,16 +99,10 @@ async function generatePdf(html) {
       format: 'A4',
       printBackground: true,
       preferCSSPageSize: true,
-      timeout: 60000,
-      margin: {
-        top: '0mm',
-        right: '0mm',
-        bottom: '0mm',
-        left: '0mm'
-      }
+      margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' }
     });
 
-    console.log('[PDF] Generated successfully, size:', pdfBuffer.length, 'bytes');
+    console.log('[PDF] Generated successfully');
     return pdfBuffer;
 
   } catch (error) {
