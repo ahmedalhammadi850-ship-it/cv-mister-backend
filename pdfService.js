@@ -9,8 +9,15 @@ async function generatePdf(html) {
 
   try {
     if (IS_PRODUCTION) {
+      // Enable font rendering for Arabic and other non-Latin scripts
+      chromium.setGraphicsMode = false;
+      
       browser = await puppeteerCore.launch({
-        args: chromium.args,
+        args: [
+          ...chromium.args,
+          '--font-render-hinting=none',
+          '--disable-font-subpixel-positioning',
+        ],
         defaultViewport: chromium.defaultViewport,
         executablePath: await chromium.executablePath(),
         headless: chromium.headless,
@@ -39,9 +46,12 @@ async function generatePdf(html) {
     // ضبط المحتوى مباشرة (أكثر استقراراً من زيارة الرابط)
     console.log('[PDF] Setting page content...');
     
-    // حقن استايلات الطباعة لضمان دقة الألوان
+    // حقن استايلات الطباعة + تحميل الخطوط العربية مباشرة عبر @font-face
     const styledHtml = `
       <style>
+        /* Force load Arabic fonts via Google Fonts API directly */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Cairo:wght@400;600;700&family=Almarai:wght@300;400;700;800&family=Readex+Pro:wght@200;300;400;500;600;700&family=Tajawal:wght@300;400;500;700;800&family=Roboto:wght@300;400;500;700&display=swap');
+        
         * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         @page { size: A4; margin: 0; }
         body { margin: 0; padding: 0; }
@@ -54,8 +64,37 @@ async function generatePdf(html) {
       timeout: 60000
     });
 
-    // انتظار الخطوط
+    // انتظار الخطوط — مع محاولات متعددة
+    console.log('[PDF] Waiting for fonts to load...');
     await page.evaluateHandle('document.fonts.ready');
+    
+    // انتظار إضافي لضمان تحميل الخطوط العربية بالكامل
+    const fontsLoaded = await page.evaluate(async () => {
+      // Force load critical Arabic fonts
+      const testFonts = [
+        'Readex Pro', 'IBM Plex Sans Arabic', 'Cairo', 
+        'Tajawal', 'Almarai', 'Inter', 'Roboto'
+      ];
+      
+      const results = {};
+      for (const font of testFonts) {
+        try {
+          const loaded = await document.fonts.load(`16px "${font}"`);
+          results[font] = loaded.length > 0;
+        } catch(e) {
+          results[font] = false;
+        }
+      }
+      
+      // Wait for all fonts to settle
+      await document.fonts.ready;
+      return results;
+    });
+    
+    console.log('[PDF] Font loading results:', fontsLoaded);
+    
+    // انتظار 1.5 ثانية إضافية لضمان تقديم الخطوط
+    await new Promise(resolve => setTimeout(resolve, 1500));
 
     // تفعيل وضع الطباعة
     await page.emulateMediaType('print');
